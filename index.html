@@ -3,6 +3,16 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<script>
+// Email links (password reset, confirm email) land on the site root. Pass them on to the reset page.
+(function () {
+  var h = new URLSearchParams(location.hash.replace(/^#/, ''));
+  var q = new URLSearchParams(location.search);
+  if (h.has('access_token') || h.has('error_code') || h.has('error') || q.has('code') || q.has('token_hash') || q.has('error_code')) {
+    location.replace('reset.html' + location.search + location.hash);
+  }
+})();
+</script>
 <title>Tap: Support</title>
 <meta name="description" content="Help and contact details for the Tap pub check-in app.">
 <meta name="color-scheme" content="light dark">

@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta name="robots" content="noindex">
+<meta name="color-scheme" content="light dark">
+<title>Tap: reset your password</title>
+<link rel="stylesheet" href="style.css">
+<style>
+.sbtn { display: block; text-align: center; padding: 14px 18px; border-radius: 12px; font-weight: 600; text-decoration: none; margin: 12px 0; }
+.sbtn.primary { background: #C2732B; color: #fff; }
+.sbtn.secondary { border: 1.5px solid #C2732B; color: #C2732B; }
+.sbtn:hover { opacity: .9; }
+.small { font-size: .9em; opacity: .8; }
+[hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<header class="site"><div class="wrap">
+<a class="brand" href="./">Tap<span>.</span></a>
+<nav><a href="./">Support</a><a href="privacy.html">Privacy</a><a href="terms.html">Terms</a></nav>
+</div></header>
+<main><div class="wrap">
+
+<div id="ios" hidden>
+<h1 id="iosTitle">Reset your password</h1>
+<p id="iosText">Open Tap on your iPhone to choose a new password.</p>
+<a class="sbtn primary" id="openApp" href="#">Open in the Tap app</a>
+<a class="sbtn secondary" id="webIos" href="#">Reset in your browser instead</a>
+<p class="small">Opening the app doesn't work? Use the browser option. It does the same job. Don't have Tap yet? <a href="https://apps.apple.com/app/id6819763345">Get it on the App Store</a>.</p>
+</div>
+
+<div id="other" hidden>
+<h1>Reset your password</h1>
+<p>Taking you to Tap to choose a new password&hellip;</p>
+<a class="sbtn primary" id="webOther" href="#">Continue</a>
+</div>
+
+<div id="expired" hidden>
+<h1>That link has expired</h1>
+<p>Reset links only work once and run out after a short time. Open Tap, tap <strong>Forgot password</strong> and we'll send you a fresh one.</p>
+<a class="sbtn primary" href="https://tap-pub-app.github.io/tap-web/">Open Tap in your browser</a>
+<a class="sbtn secondary" href="https://apps.apple.com/app/id6819763345">Get Tap on the App Store</a>
+</div>
+
+</div></main>
+<footer><div class="wrap">Tap is run by Angus Neale, a sole trader trading as Tap. Contact: <a href="mailto:tapapp.hello@gmail.com">tapapp.hello@gmail.com</a></div></footer>
+<script>
+(function () {
+  var WEB = 'https://tap-pub-app.github.io/tap-web/';
+  var search = location.search || '';
+  var hash = location.hash || '';
+  var hp = new URLSearchParams(hash.replace(/^#/, ''));
+  var qp = new URLSearchParams(search);
+  var type = hp.get('type') || qp.get('type') || '';
+  var hasError = hp.has('error') || hp.has('error_code') || qp.has('error') || qp.has('error_code');
+  var hasAuth = hp.has('access_token') || qp.has('code') || qp.has('token_hash');
+  var ua = navigator.userAgent || '';
+  var ios = /iPhone|iPad|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  function show(id) { document.getElementById(id).hidden = false; }
+
+  if (hasError || !hasAuth) { show('expired'); return; }
+
+  // The recovery details stay in the URL fragment/query and are only passed on to the app or the web app.
+  var webUrl = WEB + search + hash;
+  if (ios) {
+    var appUrl = 'tap://reset-password' + search + hash;
+    if (type && type !== 'recovery') {
+      document.getElementById('iosTitle').textContent = 'Open Tap';
+      document.getElementById('iosText').textContent = 'You are all set. Open Tap to carry on.';
+    }
+    document.getElementById('openApp').href = appUrl;
+    document.getElementById('webIos').href = webUrl;
+    show('ios');
+    setTimeout(function () { location.href = appUrl; }, 400);
+  } else {
+    document.getElementById('webOther').href = webUrl;
+    show('other');
+    location.replace(webUrl);
+  }
+})();
+</script>
+</body>
+</html>
