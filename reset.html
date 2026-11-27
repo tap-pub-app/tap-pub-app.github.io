@@ -14,6 +14,11 @@
 .sbtn.secondary { border: 1.5px solid #C2732B; color: #C2732B; }
 .sbtn:hover { opacity: .9; }
 .small { font-size: .9em; opacity: .8; }
+.fld { display: block; font-weight: 600; margin: 14px 0; }
+.fld input { display: block; width: 100%; box-sizing: border-box; margin-top: 6px; padding: 12px 14px; font-size: 16px; border-radius: 10px; border: 1.5px solid #bbb; background: transparent; color: inherit; }
+.err { color: #c0392b; font-weight: 600; }
+button.sbtn { width: 100%; border: 0; font-size: 1em; cursor: pointer; font-family: inherit; }
+button.sbtn:disabled { opacity: .6; cursor: default; }
 [hidden] { display: none !important; }
 </style>
 </head>
@@ -24,17 +29,27 @@
 </div></header>
 <main><div class="wrap">
 
-<div id="ios" hidden>
-<h1 id="iosTitle">Reset your password</h1>
-<p id="iosText">Open Tap on your iPhone to choose a new password.</p>
-<a class="sbtn primary" id="openApp" href="#">Open in the Tap app</a>
-<a class="sbtn secondary" id="webIos" href="#">Reset in your browser instead</a>
-<p class="small">Opening the app doesn't work? Use the browser option. It does the same job. Don't have Tap yet? <a href="https://apps.apple.com/app/id6819763345">Get it on the App Store</a>.</p>
+<div id="form" hidden>
+<h1>Choose a new password</h1>
+<p>Pick something you'll remember after a few pints. At least 8 characters.</p>
+<form id="resetForm" novalidate>
+<label class="fld">New password<input id="pw1" type="password" autocomplete="new-password" minlength="8" required></label>
+<label class="fld">Type it again<input id="pw2" type="password" autocomplete="new-password" minlength="8" required></label>
+<p id="err" class="err" role="alert" hidden></p>
+<button class="sbtn primary" id="saveBtn" type="submit">Save new password</button>
+</form>
+</div>
+
+<div id="done" hidden>
+<h1>Password changed</h1>
+<p>Cheers. Open Tap and log in with your new password.</p>
+<a class="sbtn primary" id="openApp" href="tap://">Open the Tap app</a>
+<a class="sbtn secondary" href="https://tap-pub-app.github.io/tap-web/">Open Tap in your browser</a>
 </div>
 
 <div id="other" hidden>
-<h1>Reset your password</h1>
-<p>Taking you to Tap to choose a new password&hellip;</p>
+<h1>Opening Tap</h1>
+<p>Taking you to Tap&hellip;</p>
 <a class="sbtn primary" id="webOther" href="#">Continue</a>
 </div>
 
@@ -49,37 +64,67 @@
 <footer><div class="wrap">Tap is run by Angus Neale, a sole trader trading as Tap. Contact: <a href="mailto:tapapp.hello@gmail.com">tapapp.hello@gmail.com</a></div></footer>
 <script>
 (function () {
+  var SB = 'https://cvtmlvllyrwpzrfssedg.supabase.co/auth/v1';
+  var KEY = 'sb_publishable_X_j103mTWF5CkjzBG07wiA_dm4FXkLU';
   var WEB = 'https://tap-pub-app.github.io/tap-web/';
-  var search = location.search || '';
-  var hash = location.hash || '';
-  var hp = new URLSearchParams(hash.replace(/^#/, ''));
-  var qp = new URLSearchParams(search);
-  var type = hp.get('type') || qp.get('type') || '';
+  var search = location.search || '', hash = location.hash || '';
+  var hp = new URLSearchParams(hash.replace(/^#/, '')), qp = new URLSearchParams(search);
+  var type = qp.get('type') || hp.get('type') || '';
+  var tokenHash = qp.get('token_hash');
+  var accessToken = hp.get('access_token');
   var hasError = hp.has('error') || hp.has('error_code') || qp.has('error') || qp.has('error_code');
-  var hasAuth = hp.has('access_token') || qp.has('code') || qp.has('token_hash');
-  var ua = navigator.userAgent || '';
-  var ios = /iPhone|iPad|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-  function show(id) { document.getElementById(id).hidden = false; }
+  function $(id) { return document.getElementById(id); }
+  function show(id) { ['form', 'done', 'other', 'expired'].forEach(function (x) { $(x).hidden = x !== id; }); }
 
-  if (hasError || !hasAuth) { show('expired'); return; }
+  // Keep the one-time token out of the address bar and browser history.
+  if (tokenHash || accessToken) { try { history.replaceState(null, '', location.pathname); } catch (e) {} }
 
-  // The recovery details stay in the URL fragment/query and are only passed on to the app or the web app.
-  var webUrl = WEB + search + hash;
-  if (ios) {
-    var appUrl = 'tap://reset-password' + search + hash;
-    if (type && type !== 'recovery') {
-      document.getElementById('iosTitle').textContent = 'Open Tap';
-      document.getElementById('iosText').textContent = 'You are all set. Open Tap to carry on.';
+  if (hasError) { show('expired'); return; }
+
+  if (type === 'recovery' && (tokenHash || accessToken)) {
+    show('form');
+    var session = accessToken; // the token is only used after Save is pressed, so link scanners can't use it up
+    var err = $('err'), btn = $('saveBtn');
+    function fail(msg) { err.textContent = msg; err.hidden = false; btn.disabled = false; btn.textContent = 'Save new password'; }
+    function api(method, path, body, token) {
+      var h = { 'Content-Type': 'application/json', apikey: KEY };
+      if (token) h.Authorization = 'Bearer ' + token;
+      return fetch(SB + path, { method: method, headers: h, body: body ? JSON.stringify(body) : undefined })
+        .then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { return { ok: r.ok, status: r.status, data: j }; }); });
     }
-    document.getElementById('openApp').href = appUrl;
-    document.getElementById('webIos').href = webUrl;
-    show('ios');
-    setTimeout(function () { location.href = appUrl; }, 400);
-  } else {
-    document.getElementById('webOther').href = webUrl;
-    show('other');
-    location.replace(webUrl);
+    $('resetForm').addEventListener('submit', function (ev) {
+      ev.preventDefault(); err.hidden = true;
+      var p1 = $('pw1').value, p2 = $('pw2').value;
+      if (p1.length < 8) return fail('Use at least 8 characters.');
+      if (p1 !== p2) return fail("Those passwords don't match.");
+      btn.disabled = true; btn.textContent = 'Saving\u2026';
+      var getSession = session ? Promise.resolve(session) : api('POST', '/verify', { type: 'recovery', token_hash: tokenHash }).then(function (r) {
+        if (!r.ok || !r.data.access_token) { show('expired'); throw null; }
+        session = r.data.access_token; return session;
+      });
+      getSession.then(function (tok) {
+        return api('PUT', '/user', { password: p1 }, tok);
+      }).then(function (r) {
+        if (r.ok) {
+          api('POST', '/logout?scope=local', null, session).catch(function () {});
+          show('done'); return;
+        }
+        var code = r.data.error_code || r.data.code || '', msg = r.data.msg || r.data.message || '';
+        if (code === 'same_password') return fail("That's your current password. Pick a new one.");
+        if (code === 'weak_password') return fail('That password is too easy to guess. Try a longer one.');
+        if (r.status === 401 || r.status === 403) { show('expired'); return; }
+        fail(msg || 'Something went wrong. Try again in a minute.');
+      }).catch(function (e) { if (e !== null) fail('No connection. Check your signal and try again.'); });
+    });
+    return;
   }
+
+  // Old-style links from before this fix (they can't be used outside the device that asked for them).
+  if (type === 'recovery' || qp.has('code') || !(tokenHash || accessToken)) { show('expired'); return; }
+
+  // Any other Tap email link (e.g. email confirmation): hand it to the web app.
+  var webUrl = WEB + search + hash;
+  $('webOther').href = webUrl; show('other'); location.replace(webUrl);
 })();
 </script>
 </body>
